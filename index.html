@@ -15,6 +15,8 @@
       --today: rgba(255,255,255,.10);
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius: 18px;
+      --select: rgba(255,255,255,.14);
+      --selectBorder: rgba(255,255,255,.28);
     }
     body.tg{ --bg: var(--tg-theme-bg-color, var(--bg)); --muted: var(--tg-theme-hint-color, var(--muted)); }
     *{ box-sizing:border-box; }
@@ -56,31 +58,15 @@
     .muted{ color:var(--muted); font-size:13px; line-height:1.35; }
     .danger{ color:#ff8aa0; }
 
-    /* Calendar header */
     .calHead{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
     .monthTitle{ font-size:16px; font-weight:760; letter-spacing:.2px; }
     .dow{ display:grid; grid-template-columns: repeat(7,1fr); gap:8px; margin-bottom:8px; }
     .dow div{ text-align:center; font-size:11px; color:var(--muted); font-weight:650; letter-spacing:.4px; }
 
-    /* ✅ Animated viewport */
-    .calViewport{
-      position: relative;
-      overflow: hidden;
-      border-radius: 16px;
-      /* чуть мягче края */
-    }
-    .calTrack{
-      display:flex;
-      width: 300%;
-      transform: translateX(-33.3333%);
-      will-change: transform;
-    }
-    .calPage{
-      width: 33.3333%;
-      padding: 2px;
-    }
+    .calViewport{ position:relative; overflow:hidden; border-radius: 16px; }
+    .calTrack{ display:flex; width:300%; transform: translateX(-33.3333%); will-change: transform; }
+    .calPage{ width:33.3333%; padding:2px; }
 
-    /* Grid inside a page */
     .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:8px; }
 
     .day{
@@ -89,11 +75,8 @@
       border-radius:14px;
       border:1px solid var(--border);
       background: rgba(255,255,255,.03);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      font-weight:700;
-      font-size:14px;
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:14px;
       color:var(--text);
       overflow:hidden;
       cursor:pointer;
@@ -103,6 +86,16 @@
     .day.today{ outline:2px solid rgba(255,255,255,.15); background:var(--today); }
     .day.period{ background:var(--periodSoft); border-color: rgba(255,90,122,.28); }
     .day.predict{ background:var(--predict); border-color: rgba(109,214,255,.28); }
+
+    /* ✅ выбранный день для тестинга */
+    .day.selected{
+      outline: 2px solid var(--selectBorder);
+      background: var(--select);
+    }
+    /* если выбранный день ещё и period/predict — сохраняем подсветку статуса, но даём обводку */
+    .day.period.selected{ outline-color: rgba(255,90,122,.55); }
+    .day.predict.selected{ outline-color: rgba(109,214,255,.55); }
+
     .badge{ position:absolute; bottom:6px; right:6px; width:8px; height:8px; border-radius:999px; background: rgba(255,255,255,.35); }
     .day.period .badge{ background:var(--period); }
     .day.predict .badge{ background:var(--accent); }
@@ -130,8 +123,6 @@
       text-align:center;
     }
     .toast.show{ opacity:1; }
-
-    /* During swipe */
     .noSelect { user-select:none; }
   </style>
 </head>
@@ -141,7 +132,7 @@
     <div class="topbar">
       <div class="brand">
         <div class="title">Трекер цикла</div>
-        <div class="sub">Данные хранятся локально на телефоне</div>
+        <div class="sub">Тапни по дню → выбери дату для отметки (тестинг)</div>
       </div>
       <div class="chip" id="chipInfo">MVP</div>
     </div>
@@ -149,6 +140,7 @@
     <div class="card">
       <div class="headline" id="summaryTitle">Добавь данные</div>
       <div class="muted" id="summaryText">Нажми «Началось» в первый день — после 2 циклов появится прогноз.</div>
+      <div class="muted" id="selectedInfo" style="margin-top:8px;"></div>
     </div>
 
     <div class="card">
@@ -165,7 +157,6 @@
         <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div>
       </div>
 
-      <!-- ✅ swipe only here -->
       <div class="calViewport" id="gridViewport">
         <div class="calTrack" id="calTrack">
           <div class="calPage"><div class="grid" id="gridPrev"></div></div>
@@ -191,8 +182,11 @@
           <input id="importFile" type="file" accept="application/json" style="display:none" />
         </label>
         <button class="btn ghost danger" id="resetBtn">Сброс</button>
+        <button class="btn ghost" id="clearSelBtn">Снять выбор</button>
       </div>
-      <div class="muted" style="margin-top:10px">Экспорт/импорт — бэкап. Сброс удалит всё локально.</div>
+      <div class="muted" style="margin-top:10px">
+        Если дата выбрана, отметки ставятся на неё. Если не выбрана — на сегодня.
+      </div>
     </div>
 
     <div class="card">
@@ -213,7 +207,6 @@
     }
   } catch (_) {}
 
-  // Storage
   const KEY = "cycle_app_v3";
   const DEFAULT = { cycles: [], periodLenHint: 5 };
 
@@ -228,6 +221,7 @@
   const fmtLong = (d) => d.toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
   const fmtShort = (d) => d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric"});
   const clamp = (v,min,max) => Math.max(min, Math.min(max,v));
+  const isValidISO = (s) => { try { return !!s && !isNaN(new Date(s).getTime()); } catch { return false; } };
 
   function medianInt(nums){
     const a=[...nums].sort((x,y)=>x-y);
@@ -285,7 +279,6 @@
     return { fact, predict };
   }
 
-  // Calendar grid dates (Mon-first, 6 weeks)
   function monthGridDates(viewMonth){
     const first=new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
     const shift=(first.getDay()+6)%7;
@@ -298,8 +291,21 @@
     return d.toLocaleDateString("ru-RU", { month:"long", year:"numeric" }).replace(/^./, c=>c.toUpperCase());
   }
 
-  // UI state
-  const state = { view: monthStart(new Date()), animating:false };
+  // ✅ UI state includes selected date for testing
+  const state = {
+    view: monthStart(new Date()),
+    animating:false,
+    selectedISO: null   // если выбрано, сюда пишем ISO start-of-day
+  };
+
+  function renderSelectedInfo(){
+    const el = document.getElementById("selectedInfo");
+    if (state.selectedISO) {
+      el.textContent = `Выбранная дата: ${fmtLong(parseISO(state.selectedISO))}`;
+    } else {
+      el.textContent = "Выбранная дата: нет (будет использоваться сегодня)";
+    }
+  }
 
   function renderSummary(){
     const data=load();
@@ -315,6 +321,7 @@
       text.textContent="Чтобы появился прогноз, отметь минимум 2 начала цикла кнопкой «Началось».";
       document.getElementById("chipInfo").textContent="MVP";
     }
+    renderSelectedInfo();
   }
 
   function renderHistory(){
@@ -341,30 +348,41 @@
       const iso=startOfDayISO(d);
       const el=document.createElement("div");
       el.className="day";
+
       if(d.getMonth()!==month) el.classList.add("out");
       if(sameDay(d,today)) el.classList.add("today");
       if(fact.has(iso)) el.classList.add("period");
       if(predict.has(iso)) el.classList.add("predict");
+      if(state.selectedISO === iso) el.classList.add("selected");
+
       el.textContent=String(d.getDate());
+
       const badge=document.createElement("div");
       badge.className="badge";
       el.appendChild(badge);
+
       el.addEventListener("click", ()=>{
-        const parts=[];
-        if(fact.has(iso)) parts.push("факт");
-        if(predict.has(iso)) parts.push("прогноз");
-        toast(`${fmtLong(d)} — ${parts.length ? parts.join(" + ") : "нет отметок"}`);
+        // toggle selection
+        if (state.selectedISO === iso) {
+          state.selectedISO = null;
+          toast("Выбор снят");
+        } else {
+          state.selectedISO = iso;
+          toast(`Выбрано: ${fmtLong(d)}`);
+        }
+        renderSelectedInfo();
+        // перерисуем только три сетки, чтобы подсветка selected обновилась
+        renderMonthTriple();
       });
+
       gridEl.appendChild(el);
     }
   }
 
   function renderMonthTriple(){
     document.getElementById("monthTitle").textContent = monthName(state.view);
-
     const prev = new Date(state.view.getFullYear(), state.view.getMonth()-1, 1);
     const next = new Date(state.view.getFullYear(), state.view.getMonth()+1, 1);
-
     fillGrid(document.getElementById("gridPrev"), prev);
     fillGrid(document.getElementById("gridNow"), state.view);
     fillGrid(document.getElementById("gridNext"), next);
@@ -376,29 +394,62 @@
     renderHistory();
   }
 
-  // Actions
+  // ✅ Use selected date if exists, else today
+  function effectiveISODate(){
+    const todayISO = startOfDayISO(new Date());
+    if (state.selectedISO && isValidISO(state.selectedISO)) return state.selectedISO;
+    return todayISO;
+  }
+
+  // Actions (use effective date)
   function startCycle(){
     const data=load();
-    const todayISO=startOfDayISO(new Date());
-    if(data.cycles.some(c=>c.startISO===todayISO)){ toast("Сегодня уже отмечено как старт."); return; }
-    data.cycles.push({ startISO: todayISO, endISO: null });
+    const iso = effectiveISODate();
+
+    if (data.cycles.some(c=>c.startISO===iso)){
+      toast("Этот день уже отмечен как старт.");
+      return;
+    }
+    data.cycles.push({ startISO: iso, endISO: null });
+    // сортируем по дате старта чтобы прогноз работал ровно
+    data.cycles.sort((a,b)=>parseISO(a.startISO)-parseISO(b.startISO));
     save(data);
     rerenderAll();
-    toast("Старт отмечен.");
+    toast(`Старт: ${fmtLong(parseISO(iso))}`);
   }
+
   function endCycle(){
     const data=load();
-    for(let i=data.cycles.length-1;i>=0;i--){
-      if(!data.cycles[i].endISO){
-        data.cycles[i].endISO=startOfDayISO(new Date());
-        save(data);
-        rerenderAll();
-        toast("Конец отмечен.");
-        return;
+    const iso = effectiveISODate();
+
+    // закрываем последний незакрытый цикл (по дате старта)
+    const openIndex = (() => {
+      let idx = -1;
+      for (let i = data.cycles.length - 1; i >= 0; i--) {
+        if (!data.cycles[i].endISO) { idx = i; break; }
       }
+      return idx;
+    })();
+
+    if (openIndex === -1){
+      toast("Нет активного цикла.");
+      return;
     }
-    toast("Нет активного цикла.");
+
+    // защита: конец не раньше старта
+    const start = parseISO(data.cycles[openIndex].startISO);
+    const end = parseISO(iso);
+    if (end < start){
+      toast("Конец не может быть раньше начала.");
+      return;
+    }
+
+    data.cycles[openIndex].endISO = iso;
+    save(data);
+    rerenderAll();
+    toast(`Конец: ${fmtLong(end)}`);
   }
+
   function exportData(){
     const data=load();
     const blob=new Blob([JSON.stringify(data,null,2)], { type:"application/json" });
@@ -409,6 +460,7 @@
     URL.revokeObjectURL(a.href);
     toast("Экспорт готов.");
   }
+
   function importData(file){
     const reader=new FileReader();
     reader.onload=()=>{
@@ -416,23 +468,32 @@
         const parsed=JSON.parse(reader.result);
         if(!parsed || !Array.isArray(parsed.cycles)) throw new Error("bad");
         localStorage.setItem(KEY, JSON.stringify({ ...structuredClone(DEFAULT), ...parsed }));
+        state.selectedISO = null;
         rerenderAll();
         toast("Импортировано.");
       } catch { toast("Не удалось импортировать."); }
     };
     reader.readAsText(file);
   }
+
   function resetAll(){
     localStorage.removeItem(KEY);
+    state.selectedISO = null;
     rerenderAll();
     toast("Сброшено.");
+  }
+
+  function clearSelection(){
+    state.selectedISO = null;
+    renderSelectedInfo();
+    renderMonthTriple();
+    toast("Выбор снят");
   }
 
   // ✅ Animated month switch
   const track = document.getElementById("calTrack");
   function setTrackX(px, withTransition){
     track.style.transition = withTransition ? "transform 220ms cubic-bezier(.2,.8,.2,1)" : "none";
-    // base offset = -1 page (center)
     track.style.transform = `translateX(calc(-33.3333% + ${px}px))`;
   }
   function snapToCenter(){
@@ -440,34 +501,26 @@
     track.addEventListener("transitionend", function handler(){
       track.removeEventListener("transitionend", handler);
       track.style.transition = "none";
-      // reset exact center without px
       track.style.transform = "translateX(-33.3333%)";
     });
   }
 
-  function commitMonth(delta){ // -1 prev, +1 next
+  function commitMonth(delta){
     if(state.animating) return;
     state.animating = true;
 
     const viewport = document.getElementById("gridViewport");
     const w = viewport.clientWidth;
-
-    // animate to side
     const targetPx = delta > 0 ? -w : w;
+
     setTrackX(targetPx, true);
 
     track.addEventListener("transitionend", function handler(){
       track.removeEventListener("transitionend", handler);
-
-      // update view month
       state.view = new Date(state.view.getFullYear(), state.view.getMonth()+delta, 1);
-      // rebuild triple months
       renderMonthTriple();
-
-      // instantly set to center without transition
-      track.style.transition = "none";
-      track.style.transform = "translateX(-33.3333%)";
-
+      track.style.transition="none";
+      track.style.transform="translateX(-33.3333%)";
       state.animating = false;
     });
   }
@@ -481,37 +534,36 @@
   document.getElementById("endBtn").addEventListener("click", endCycle);
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("resetBtn").addEventListener("click", resetAll);
+  document.getElementById("clearSelBtn").addEventListener("click", clearSelection);
   document.getElementById("importFile").addEventListener("change", (e)=>{
     const f=e.target.files?.[0];
     if(f) importData(f);
     e.target.value="";
   });
 
-  // ✅ Swipe with drag + rubber band
+  // Swipe with drag
   function attachSwipe(el){
-    let startX=0, startY=0, lastX=0, startT=0;
-    let dragging=false, locked=false, lockDir=null;
+    let startX=0, startY=0, startT=0;
+    let dragging=false, locked=false;
 
-    const DIST_THRESHOLD = 0.22; // fraction of width
+    const DIST_THRESHOLD = 0.22;
     const VELOCITY_PX_MS = 0.55;
 
     function onStart(e){
       if(state.animating) return;
       if(!e.touches || e.touches.length!==1) return;
       const t=e.touches[0];
-      startX=t.clientX; startY=t.clientY; lastX=startX;
+      startX=t.clientX; startY=t.clientY;
       startT=performance.now();
-      dragging=true; locked=false; lockDir=null;
+      dragging=true; locked=false;
       document.body.classList.add("noSelect");
       track.style.transition="none";
     }
 
     function rubber(dx, width){
-      // мягкий резиновый эффект при сильном тянучем
-      const k = 0.35;
-      const max = width * 0.9;
-      const cl = Math.max(-max, Math.min(max, dx));
-      return cl * (1 - k * (Math.abs(cl) / max));
+      const k=0.35, max=width*0.9;
+      const cl=Math.max(-max, Math.min(max, dx));
+      return cl * (1 - k*(Math.abs(cl)/max));
     }
 
     function onMove(e){
@@ -522,26 +574,18 @@
 
       if(!locked){
         if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
-        // decide direction
         if(Math.abs(dy) > Math.abs(dx) * 1.15){
-          // vertical scroll, cancel
           dragging=false;
           document.body.classList.remove("noSelect");
           track.style.transform="translateX(-33.3333%)";
           return;
-        } else {
-          locked=true; lockDir="h";
         }
+        locked=true;
       }
 
-      if(lockDir==="h"){
-        e.preventDefault(); // важно: passive:false
-        const viewport=document.getElementById("gridViewport");
-        const w=viewport.clientWidth;
-        const px = rubber(dx, w);
-        setTrackX(px, false);
-        lastX=t.clientX;
-      }
+      e.preventDefault();
+      const w=document.getElementById("gridViewport").clientWidth;
+      setTrackX(rubber(dx, w), false);
     }
 
     function onEnd(e){
@@ -552,31 +596,19 @@
       const endT=performance.now();
       const dt=endT - startT;
       const touch=(e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
-      if(!touch){
-        snapToCenter();
-        return;
-      }
+      if(!touch){ snapToCenter(); return; }
 
-      const dx = touch.clientX - startX;
-      const dy = touch.clientY - startY;
+      const dx=touch.clientX - startX;
+      const dy=touch.clientY - startY;
 
-      if(Math.abs(dy) > Math.abs(dx) * 1.15){
-        snapToCenter();
-        return;
-      }
+      if(Math.abs(dy) > Math.abs(dx) * 1.15){ snapToCenter(); return; }
 
-      const viewport=document.getElementById("gridViewport");
-      const w=viewport.clientWidth;
-      const v = Math.abs(dx) / Math.max(dt,1);
+      const w=document.getElementById("gridViewport").clientWidth;
+      const v=Math.abs(dx)/Math.max(dt,1);
+      const passed=(Math.abs(dx) > w*DIST_THRESHOLD) || (v > VELOCITY_PX_MS);
 
-      const passed = (Math.abs(dx) > w * DIST_THRESHOLD) || (v > VELOCITY_PX_MS);
+      if(!passed){ snapToCenter(); return; }
 
-      if(!passed){
-        snapToCenter();
-        return;
-      }
-
-      // dx<0 => swipe left => next month (+1)
       commitMonth(dx < 0 ? +1 : -1);
     }
 
