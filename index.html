@@ -7,186 +7,111 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     :root{
-      --bg: #0b0c10;
-      --card:#12141b;
-      --text:#e9ecf1;
-      --muted:#a8b0bd;
+      --bg:#0b0c10; --card:#12141b; --text:#e9ecf1; --muted:#a8b0bd;
       --border: rgba(255,255,255,.08);
-
-      --accent:#6dd6ff;     /* голубой */
-      --period:#ff5a7a;     /* розовый */
+      --accent:#6dd6ff; --period:#ff5a7a;
       --periodSoft: rgba(255,90,122,.18);
       --predict: rgba(109,214,255,.18);
       --today: rgba(255,255,255,.10);
       --shadow: 0 10px 30px rgba(0,0,0,.35);
       --radius: 18px;
     }
-
-    /* Telegram theme sync (если доступно) */
-    body.tg {
-      --bg: var(--tg-theme-bg-color, var(--bg));
-      --muted: var(--tg-theme-hint-color, var(--muted));
-    }
-
+    body.tg{ --bg: var(--tg-theme-bg-color, var(--bg)); --muted: var(--tg-theme-hint-color, var(--muted)); }
     *{ box-sizing:border-box; }
     body{
-      margin:0;
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, Segoe UI, Roboto, Arial;
-      -webkit-font-smoothing: antialiased;
-      padding: 14px 14px 24px;
+      margin:0; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,Segoe UI,Roboto,Arial;
+      -webkit-font-smoothing:antialiased;
+      padding:14px 14px 24px;
     }
-
-    .wrap{ max-width: 560px; margin: 0 auto; display:flex; flex-direction:column; gap:12px; }
-
-    .topbar{
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      padding: 10px 12px;
-    }
-    .brand{
-      display:flex; flex-direction:column; gap:2px;
-    }
-    .brand .title{ font-size: 18px; font-weight: 720; letter-spacing:.2px; }
-    .brand .sub{ font-size: 12px; color: var(--muted); }
-
-    .chip{
-      padding: 8px 10px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: rgba(255,255,255,.04);
-      font-size: 12px;
-      color: var(--muted);
-      white-space:nowrap;
-    }
-
-    .card{
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow);
-      padding: 14px;
-    }
-
+    .wrap{ max-width:560px; margin:0 auto; display:flex; flex-direction:column; gap:12px; }
+    .topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; }
+    .brand{ display:flex; flex-direction:column; gap:2px; }
+    .brand .title{ font-size:18px; font-weight:720; letter-spacing:.2px; }
+    .brand .sub{ font-size:12px; color:var(--muted); }
+    .chip{ padding:8px 10px; border:1px solid var(--border); border-radius:999px; background: rgba(255,255,255,.04); font-size:12px; color:var(--muted); white-space:nowrap; }
+    .card{ background:var(--card); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); padding:14px; }
     .row{ display:flex; gap:10px; flex-wrap:wrap; }
-    .row.nowrap{ flex-wrap:nowrap; }
     .spacer{ flex:1; }
-
     .btn{
-      border: 1px solid var(--border);
+      border:1px solid var(--border);
       background: rgba(255,255,255,.04);
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 14px;
-      font-size: 14px;
-      font-weight: 650;
-      cursor: pointer;
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:14px;
+      font-size:14px;
+      font-weight:650;
+      cursor:pointer;
       transition: transform .05s ease, background .2s ease;
       user-select:none;
     }
-    .btn:active{ transform: scale(.98); }
+    .btn:active{ transform:scale(.98); }
     .btn.primary{
       background: linear-gradient(135deg, rgba(255,90,122,.95), rgba(255,90,122,.75));
       border-color: rgba(255,90,122,.35);
     }
-    .btn.ghost{ background: transparent; }
-    .btn.small{ padding: 8px 10px; border-radius: 12px; font-size: 13px; }
-    .btn.icon{
-      width: 40px; height: 40px; display:grid; place-items:center;
-      padding:0; border-radius: 14px;
+    .btn.ghost{ background:transparent; }
+    .btn.icon{ width:40px; height:40px; display:grid; place-items:center; padding:0; border-radius:14px; }
+    .headline{ font-size:16px; font-weight:730; margin-bottom:6px; }
+    .muted{ color:var(--muted); font-size:13px; line-height:1.35; }
+    .danger{ color:#ff8aa0; }
+
+    /* Calendar header */
+    .calHead{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .monthTitle{ font-size:16px; font-weight:760; letter-spacing:.2px; }
+    .dow{ display:grid; grid-template-columns: repeat(7,1fr); gap:8px; margin-bottom:8px; }
+    .dow div{ text-align:center; font-size:11px; color:var(--muted); font-weight:650; letter-spacing:.4px; }
+
+    /* ✅ Animated viewport */
+    .calViewport{
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      /* чуть мягче края */
+    }
+    .calTrack{
+      display:flex;
+      width: 300%;
+      transform: translateX(-33.3333%);
+      will-change: transform;
+    }
+    .calPage{
+      width: 33.3333%;
+      padding: 2px;
     }
 
-    .headline{ font-size: 16px; font-weight: 730; margin-bottom: 6px; }
-    .muted{ color: var(--muted); font-size: 13px; line-height: 1.35; }
+    /* Grid inside a page */
+    .grid{ display:grid; grid-template-columns: repeat(7,1fr); gap:8px; }
 
-    /* Calendar */
-    .calHead{
-      display:flex; align-items:center; gap:10px;
-      margin-bottom: 10px;
-    }
-    .monthTitle{
-      font-size: 16px;
-      font-weight: 760;
-      letter-spacing:.2px;
-    }
-    .dow{
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-    .dow div{
-      text-align:center;
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 650;
-      letter-spacing:.4px;
-    }
-    .grid{
-      display:grid;
-      grid-template-columns: repeat(7, 1fr);
-      gap: 8px;
-    }
     .day{
       position:relative;
-      height: 42px;
-      border-radius: 14px;
-      border: 1px solid var(--border);
+      height:42px;
+      border-radius:14px;
+      border:1px solid var(--border);
       background: rgba(255,255,255,.03);
       display:flex;
       align-items:center;
       justify-content:center;
-      font-weight: 700;
-      font-size: 14px;
-      color: var(--text);
+      font-weight:700;
+      font-size:14px;
+      color:var(--text);
       overflow:hidden;
       cursor:pointer;
       user-select:none;
     }
-    .day.out{
-      opacity:.35;
-      background: transparent;
-    }
-    .day.today{
-      outline: 2px solid rgba(255,255,255,.15);
-      background: var(--today);
-    }
-    .day.period{
-      background: var(--periodSoft);
-      border-color: rgba(255,90,122,.28);
-    }
-    .day.predict{
-      background: var(--predict);
-      border-color: rgba(109,214,255,.28);
-    }
-    .badge{
-      position:absolute;
-      bottom: 6px;
-      right: 6px;
-      width: 8px;
-      height: 8px;
-      border-radius: 999px;
-      background: rgba(255,255,255,.35);
-    }
-    .day.period .badge{ background: var(--period); }
-    .day.predict .badge{ background: var(--accent); }
+    .day.out{ opacity:.35; background: transparent; }
+    .day.today{ outline:2px solid rgba(255,255,255,.15); background:var(--today); }
+    .day.period{ background:var(--periodSoft); border-color: rgba(255,90,122,.28); }
+    .day.predict{ background:var(--predict); border-color: rgba(109,214,255,.28); }
+    .badge{ position:absolute; bottom:6px; right:6px; width:8px; height:8px; border-radius:999px; background: rgba(255,255,255,.35); }
+    .day.period .badge{ background:var(--period); }
+    .day.predict .badge{ background:var(--accent); }
 
-    .legend{
-      display:flex; gap:10px; flex-wrap:wrap;
-      margin-top: 10px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-    .leg{
-      display:flex; align-items:center; gap:6px;
-      padding: 6px 10px;
-      border:1px solid var(--border);
-      border-radius: 999px;
-      background: rgba(255,255,255,.03);
-    }
+    .legend{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; color:var(--muted); font-size:12px; }
+    .leg{ display:flex; align-items:center; gap:6px; padding:6px 10px; border:1px solid var(--border); border-radius:999px; background: rgba(255,255,255,.03); }
     .dot{ width:10px; height:10px; border-radius:999px; background:#777; }
-    .dot.period{ background: var(--period); }
-    .dot.predict{ background: var(--accent); }
+    .dot.period{ background:var(--period); }
+    .dot.predict{ background:var(--accent); }
 
     .toast{
       position: fixed;
@@ -198,16 +123,16 @@
       padding: 10px 12px;
       border-radius: 999px;
       font-size: 13px;
-      opacity:0;
-      pointer-events:none;
+      opacity: 0;
+      pointer-events: none;
       transition: opacity .2s ease;
       max-width: min(560px, calc(100vw - 28px));
       text-align:center;
     }
     .toast.show{ opacity:1; }
 
-    .danger{ color: #ff8aa0; }
-    a{ color: inherit; }
+    /* During swipe */
+    .noSelect { user-select:none; }
   </style>
 </head>
 
@@ -221,7 +146,7 @@
       <div class="chip" id="chipInfo">MVP</div>
     </div>
 
-    <div class="card" id="summaryCard">
+    <div class="card">
       <div class="headline" id="summaryTitle">Добавь данные</div>
       <div class="muted" id="summaryText">Нажми «Началось» в первый день — после 2 циклов появится прогноз.</div>
     </div>
@@ -231,7 +156,7 @@
         <button class="btn icon" id="prevBtn" aria-label="Prev month">‹</button>
         <div class="spacer">
           <div class="monthTitle" id="monthTitle">—</div>
-          <div class="muted" id="monthHint">Нажми на день, чтобы посмотреть статус</div>
+          <div class="muted">Свайп по сетке дней для смены месяца</div>
         </div>
         <button class="btn icon" id="nextBtn" aria-label="Next month">›</button>
       </div>
@@ -240,7 +165,14 @@
         <div>ПН</div><div>ВТ</div><div>СР</div><div>ЧТ</div><div>ПТ</div><div>СБ</div><div>ВС</div>
       </div>
 
-      <div class="grid" id="grid"></div>
+      <!-- ✅ swipe only here -->
+      <div class="calViewport" id="gridViewport">
+        <div class="calTrack" id="calTrack">
+          <div class="calPage"><div class="grid" id="gridPrev"></div></div>
+          <div class="calPage"><div class="grid" id="gridNow"></div></div>
+          <div class="calPage"><div class="grid" id="gridNext"></div></div>
+        </div>
+      </div>
 
       <div class="legend">
         <div class="leg"><span class="dot period"></span> Факт</div>
@@ -260,9 +192,7 @@
         </label>
         <button class="btn ghost danger" id="resetBtn">Сброс</button>
       </div>
-      <div class="muted" style="margin-top:10px">
-        Экспорт/импорт — чтобы перенести данные или сделать бэкап. Сброс удалит всё локально на этом телефоне.
-      </div>
+      <div class="muted" style="margin-top:10px">Экспорт/импорт — бэкап. Сброс удалит всё локально.</div>
     </div>
 
     <div class="card">
@@ -283,217 +213,184 @@
     }
   } catch (_) {}
 
-  // Storage schema
-  const KEY = "cycle_app_v2";
-  const DEFAULT = {
-    cycles: [],      // {startISO: string, endISO: string|null}
-    periodLenHint: 5 // для прогнозного блока можно менять позже
-  };
+  // Storage
+  const KEY = "cycle_app_v3";
+  const DEFAULT = { cycles: [], periodLenHint: 5 };
 
   // Helpers
-  const cal = (d=new Date()) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const startOfDayISO = (d) => {
-    const x = new Date(d); x.setHours(0,0,0,0);
-    return x.toISOString();
-  };
-  const parseISO = (iso) => { const d = new Date(iso); d.setHours(0,0,0,0); return d; };
+  const calDay = (d=new Date()) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const monthStart = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
+  const startOfDayISO = (d) => { const x=new Date(d); x.setHours(0,0,0,0); return x.toISOString(); };
+  const parseISO = (iso) => { const d=new Date(iso); d.setHours(0,0,0,0); return d; };
   const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
-  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate()+n); return x; };
+  const addDays = (d,n) => { const x=new Date(d); x.setDate(x.getDate()+n); return x; };
   const daysBetween = (a,b) => Math.round((parseISO(b).getTime() - parseISO(a).getTime())/(1000*60*60*24));
   const fmtLong = (d) => d.toLocaleDateString("ru-RU",{day:"numeric",month:"long",year:"numeric"});
   const fmtShort = (d) => d.toLocaleDateString("ru-RU",{day:"2-digit",month:"2-digit",year:"numeric"});
   const clamp = (v,min,max) => Math.max(min, Math.min(max,v));
 
   function medianInt(nums){
-    const a = [...nums].sort((x,y)=>x-y);
-    if (!a.length) return null;
-    const n = a.length;
+    const a=[...nums].sort((x,y)=>x-y);
+    if(!a.length) return null;
+    const n=a.length;
     return n%2 ? a[Math.floor(n/2)] : Math.round((a[n/2-1]+a[n/2])/2);
   }
-
   function load(){
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return structuredClone(DEFAULT);
-    try {
-      const parsed = JSON.parse(raw);
-      return { ...structuredClone(DEFAULT), ...parsed };
-    } catch {
-      return structuredClone(DEFAULT);
-    }
+    const raw=localStorage.getItem(KEY);
+    if(!raw) return structuredClone(DEFAULT);
+    try { const p=JSON.parse(raw); return { ...structuredClone(DEFAULT), ...p }; }
+    catch { return structuredClone(DEFAULT); }
   }
-  function save(data){
-    localStorage.setItem(KEY, JSON.stringify(data));
-  }
-
+  function save(data){ localStorage.setItem(KEY, JSON.stringify(data)); }
   function toast(msg){
-    const el = document.getElementById("toast");
-    el.textContent = msg;
-    el.classList.add("show");
+    const el=document.getElementById("toast");
+    el.textContent=msg; el.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(()=> el.classList.remove("show"), 1500);
+    toast._t=setTimeout(()=>el.classList.remove("show"), 1500);
   }
 
   // Cycle math
   function cycleStarts(data){
     return data.cycles.map(c=>parseISO(c.startISO)).sort((a,b)=>a-b);
   }
-
   function predictNextStart(data){
-    const starts = cycleStarts(data);
-    if (starts.length < 2) return { next: null, medianLen: null };
-    const lens = [];
-    for (let i=1;i<starts.length;i++){
-      const len = daysBetween(starts[i-1], starts[i]);
-      if (len>=15 && len<=60) lens.push(len);
+    const starts=cycleStarts(data);
+    if(starts.length<2) return { next:null, medianLen:null };
+    const lens=[];
+    for(let i=1;i<starts.length;i++){
+      const len=daysBetween(starts[i-1], starts[i]);
+      if(len>=15 && len<=60) lens.push(len);
     }
-    const med = medianInt(lens);
-    if (!med) return { next: null, medianLen: null };
-    return { next: addDays(starts[starts.length-1], med), medianLen: med };
+    const med=medianInt(lens);
+    if(!med) return { next:null, medianLen:null };
+    return { next:addDays(starts[starts.length-1], med), medianLen:med };
   }
+  function buildDaySets(data){
+    const fact=new Set();
+    const predict=new Set();
 
-  function buildDaySets(data, viewMonthDate){
-    // returns sets of ISO dates for highlighting (fact & prediction)
-    const fact = new Set();
-    const predict = new Set();
-
-    // Fact days: from start to end (if end exists) else 1 day only (start day)
-    for (const c of data.cycles){
-      const s = parseISO(c.startISO);
-      const e = c.endISO ? parseISO(c.endISO) : null;
-      const end = e ?? s;
-      const span = clamp(daysBetween(s, end), 0, 20); // limit to avoid crazy input
-      for (let i=0;i<=span;i++){
-        fact.add(startOfDayISO(addDays(s,i)));
-      }
+    for(const c of data.cycles){
+      const s=parseISO(c.startISO);
+      const e=c.endISO ? parseISO(c.endISO) : null;
+      const end=e ?? s;
+      const span=clamp(daysBetween(s,end), 0, 20);
+      for(let i=0;i<=span;i++) fact.add(startOfDayISO(addDays(s,i)));
     }
 
-    // Prediction block: predicted start + (periodLenHint-1)
-    const { next } = predictNextStart(data);
-    if (next){
-      const plen = clamp(Number(data.periodLenHint||5), 1, 10);
-      for (let i=0;i<plen;i++){
-        predict.add(startOfDayISO(addDays(next,i)));
-      }
+    const { next }=predictNextStart(data);
+    if(next){
+      const plen=clamp(Number(data.periodLenHint||5), 1, 10);
+      for(let i=0;i<plen;i++) predict.add(startOfDayISO(addDays(next,i)));
     }
-
     return { fact, predict };
   }
 
+  // Calendar grid dates (Mon-first, 6 weeks)
+  function monthGridDates(viewMonth){
+    const first=new Date(viewMonth.getFullYear(), viewMonth.getMonth(), 1);
+    const shift=(first.getDay()+6)%7;
+    const start=addDays(first, -shift);
+    const dates=[];
+    for(let i=0;i<42;i++) dates.push(addDays(start,i));
+    return dates;
+  }
+  function monthName(d){
+    return d.toLocaleDateString("ru-RU", { month:"long", year:"numeric" }).replace(/^./, c=>c.toUpperCase());
+  }
+
   // UI state
-  const state = {
-    view: cal(new Date()),
-  };
+  const state = { view: monthStart(new Date()), animating:false };
 
   function renderSummary(){
-    const data = load();
-    const { next, medianLen } = predictNextStart(data);
-    const title = document.getElementById("summaryTitle");
-    const text = document.getElementById("summaryText");
-
-    if (next && medianLen){
-      title.textContent = `Следующий цикл примерно: ${fmtLong(next)}`;
-      text.textContent = `Медиана длины цикла: ${medianLen} дней. Прогнозные дни подсвечены голубым.`;
-      document.getElementById("chipInfo").textContent = `Медиана ${medianLen}д`;
+    const data=load();
+    const { next, medianLen }=predictNextStart(data);
+    const title=document.getElementById("summaryTitle");
+    const text=document.getElementById("summaryText");
+    if(next && medianLen){
+      title.textContent=`Следующий цикл примерно: ${fmtLong(next)}`;
+      text.textContent=`Медиана длины цикла: ${medianLen} дней. Прогноз — голубым.`;
+      document.getElementById("chipInfo").textContent=`Медиана ${medianLen}д`;
     } else {
-      title.textContent = "Добавь данные";
-      text.textContent = "Чтобы появился прогноз, отметь минимум 2 начала цикла кнопкой «Началось».";
-      document.getElementById("chipInfo").textContent = "MVP";
+      title.textContent="Добавь данные";
+      text.textContent="Чтобы появился прогноз, отметь минимум 2 начала цикла кнопкой «Началось».";
+      document.getElementById("chipInfo").textContent="MVP";
     }
   }
 
   function renderHistory(){
-    const data = load();
-    const h = document.getElementById("history");
-    if (!data.cycles.length){
-      h.textContent = "Пока пусто.";
-      return;
-    }
-    const last = data.cycles.slice().sort((a,b)=> parseISO(b.startISO)-parseISO(a.startISO)).slice(0,10);
-    h.innerHTML = last.map(c=>{
-      const s = fmtShort(parseISO(c.startISO));
-      const e = c.endISO ? fmtShort(parseISO(c.endISO)) : "…";
+    const data=load();
+    const h=document.getElementById("history");
+    if(!data.cycles.length){ h.textContent="Пока пусто."; return; }
+    const last=data.cycles.slice().sort((a,b)=>parseISO(b.startISO)-parseISO(a.startISO)).slice(0,10);
+    h.innerHTML=last.map(c=>{
+      const s=fmtShort(parseISO(c.startISO));
+      const e=c.endISO ? fmtShort(parseISO(c.endISO)) : "…";
       return `• ${s} — ${e}`;
     }).join("<br/>");
   }
 
-  function monthName(d){
-    return d.toLocaleDateString("ru-RU", { month:"long", year:"numeric" });
-  }
+  function fillGrid(gridEl, viewMonth){
+    const data=load();
+    const { fact, predict }=buildDaySets(data);
+    const dates=monthGridDates(viewMonth);
+    const month=viewMonth.getMonth();
+    const today=calDay(new Date());
 
-  function monthGridDates(view){
-    // Monday-first grid, 6 weeks
-    const first = new Date(view.getFullYear(), view.getMonth(), 1);
-    const day = (first.getDay()+6)%7; // convert Sunday=0 -> 6
-    const start = addDays(first, -day);
-    const dates = [];
-    for (let i=0;i<42;i++) dates.push(addDays(start, i));
-    return dates;
-  }
-
-  function renderCalendar(){
-    const data = load();
-    const view = state.view;
-    document.getElementById("monthTitle").textContent = monthName(view).replace(/^./, c=>c.toUpperCase());
-
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
-
-    const dates = monthGridDates(view);
-    const { fact, predict } = buildDaySets(data, view);
-    const today = cal(new Date());
-    const month = view.getMonth();
-
-    for (const d of dates){
-      const iso = startOfDayISO(d);
-      const el = document.createElement("div");
-      el.className = "day";
-      if (d.getMonth() !== month) el.classList.add("out");
-      if (sameDay(d, today)) el.classList.add("today");
-      if (fact.has(iso)) el.classList.add("period");
-      if (predict.has(iso)) el.classList.add("predict");
-
-      el.textContent = String(d.getDate());
-      const badge = document.createElement("div");
-      badge.className = "badge";
+    gridEl.innerHTML="";
+    for(const d of dates){
+      const iso=startOfDayISO(d);
+      const el=document.createElement("div");
+      el.className="day";
+      if(d.getMonth()!==month) el.classList.add("out");
+      if(sameDay(d,today)) el.classList.add("today");
+      if(fact.has(iso)) el.classList.add("period");
+      if(predict.has(iso)) el.classList.add("predict");
+      el.textContent=String(d.getDate());
+      const badge=document.createElement("div");
+      badge.className="badge";
       el.appendChild(badge);
-
       el.addEventListener("click", ()=>{
-        const parts = [];
-        if (fact.has(iso)) parts.push("факт");
-        if (predict.has(iso)) parts.push("прогноз");
-        const status = parts.length ? parts.join(" + ") : "нет отметок";
-        toast(`${fmtLong(d)} — ${status}`);
+        const parts=[];
+        if(fact.has(iso)) parts.push("факт");
+        if(predict.has(iso)) parts.push("прогноз");
+        toast(`${fmtLong(d)} — ${parts.length ? parts.join(" + ") : "нет отметок"}`);
       });
-
-      grid.appendChild(el);
+      gridEl.appendChild(el);
     }
+  }
+
+  function renderMonthTriple(){
+    document.getElementById("monthTitle").textContent = monthName(state.view);
+
+    const prev = new Date(state.view.getFullYear(), state.view.getMonth()-1, 1);
+    const next = new Date(state.view.getFullYear(), state.view.getMonth()+1, 1);
+
+    fillGrid(document.getElementById("gridPrev"), prev);
+    fillGrid(document.getElementById("gridNow"), state.view);
+    fillGrid(document.getElementById("gridNext"), next);
   }
 
   function rerenderAll(){
     renderSummary();
-    renderCalendar();
+    renderMonthTriple();
     renderHistory();
   }
 
   // Actions
   function startCycle(){
-    const data = load();
-    const todayISO = startOfDayISO(new Date());
-    if (data.cycles.some(c => c.startISO === todayISO)){
-      toast("Сегодня уже отмечено как старт.");
-      return;
-    }
+    const data=load();
+    const todayISO=startOfDayISO(new Date());
+    if(data.cycles.some(c=>c.startISO===todayISO)){ toast("Сегодня уже отмечено как старт."); return; }
     data.cycles.push({ startISO: todayISO, endISO: null });
     save(data);
     rerenderAll();
     toast("Старт отмечен.");
   }
-
   function endCycle(){
-    const data = load();
-    for (let i=data.cycles.length-1;i>=0;i--){
-      if (!data.cycles[i].endISO){
-        data.cycles[i].endISO = startOfDayISO(new Date());
+    const data=load();
+    for(let i=data.cycles.length-1;i>=0;i--){
+      if(!data.cycles[i].endISO){
+        data.cycles[i].endISO=startOfDayISO(new Date());
         save(data);
         rerenderAll();
         toast("Конец отмечен.");
@@ -502,62 +399,194 @@
     }
     toast("Нет активного цикла.");
   }
-
   function exportData(){
-    const data = load();
-    const blob = new Blob([JSON.stringify(data,null,2)], { type:"application/json" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "cycle-backup.json";
+    const data=load();
+    const blob=new Blob([JSON.stringify(data,null,2)], { type:"application/json" });
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="cycle-backup.json";
     a.click();
     URL.revokeObjectURL(a.href);
     toast("Экспорт готов.");
   }
-
   function importData(file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const parsed = JSON.parse(reader.result);
-        if (!parsed || !Array.isArray(parsed.cycles)) throw new Error("bad");
+    const reader=new FileReader();
+    reader.onload=()=>{
+      try{
+        const parsed=JSON.parse(reader.result);
+        if(!parsed || !Array.isArray(parsed.cycles)) throw new Error("bad");
         localStorage.setItem(KEY, JSON.stringify({ ...structuredClone(DEFAULT), ...parsed }));
         rerenderAll();
         toast("Импортировано.");
-      } catch {
-        toast("Не удалось импортировать.");
-      }
+      } catch { toast("Не удалось импортировать."); }
     };
     reader.readAsText(file);
   }
-
   function resetAll(){
     localStorage.removeItem(KEY);
     rerenderAll();
     toast("Сброшено.");
   }
 
-  // Wire UI
+  // ✅ Animated month switch
+  const track = document.getElementById("calTrack");
+  function setTrackX(px, withTransition){
+    track.style.transition = withTransition ? "transform 220ms cubic-bezier(.2,.8,.2,1)" : "none";
+    // base offset = -1 page (center)
+    track.style.transform = `translateX(calc(-33.3333% + ${px}px))`;
+  }
+  function snapToCenter(){
+    setTrackX(0, true);
+    track.addEventListener("transitionend", function handler(){
+      track.removeEventListener("transitionend", handler);
+      track.style.transition = "none";
+      // reset exact center without px
+      track.style.transform = "translateX(-33.3333%)";
+    });
+  }
+
+  function commitMonth(delta){ // -1 prev, +1 next
+    if(state.animating) return;
+    state.animating = true;
+
+    const viewport = document.getElementById("gridViewport");
+    const w = viewport.clientWidth;
+
+    // animate to side
+    const targetPx = delta > 0 ? -w : w;
+    setTrackX(targetPx, true);
+
+    track.addEventListener("transitionend", function handler(){
+      track.removeEventListener("transitionend", handler);
+
+      // update view month
+      state.view = new Date(state.view.getFullYear(), state.view.getMonth()+delta, 1);
+      // rebuild triple months
+      renderMonthTriple();
+
+      // instantly set to center without transition
+      track.style.transition = "none";
+      track.style.transform = "translateX(-33.3333%)";
+
+      state.animating = false;
+    });
+  }
+
+  // Buttons
+  document.getElementById("prevBtn").addEventListener("click", ()=> commitMonth(-1));
+  document.getElementById("nextBtn").addEventListener("click", ()=> commitMonth(+1));
+
+  // Other UI
   document.getElementById("startBtn").addEventListener("click", startCycle);
   document.getElementById("endBtn").addEventListener("click", endCycle);
   document.getElementById("exportBtn").addEventListener("click", exportData);
   document.getElementById("resetBtn").addEventListener("click", resetAll);
-
-  document.getElementById("prevBtn").addEventListener("click", ()=>{
-    state.view = new Date(state.view.getFullYear(), state.view.getMonth()-1, 1);
-    renderCalendar();
-    document.getElementById("monthTitle").scrollIntoView({block:"nearest"});
-  });
-  document.getElementById("nextBtn").addEventListener("click", ()=>{
-    state.view = new Date(state.view.getFullYear(), state.view.getMonth()+1, 1);
-    renderCalendar();
-    document.getElementById("monthTitle").scrollIntoView({block:"nearest"});
-  });
-
   document.getElementById("importFile").addEventListener("change", (e)=>{
-    const f = e.target.files?.[0];
-    if (f) importData(f);
-    e.target.value = "";
+    const f=e.target.files?.[0];
+    if(f) importData(f);
+    e.target.value="";
   });
+
+  // ✅ Swipe with drag + rubber band
+  function attachSwipe(el){
+    let startX=0, startY=0, lastX=0, startT=0;
+    let dragging=false, locked=false, lockDir=null;
+
+    const DIST_THRESHOLD = 0.22; // fraction of width
+    const VELOCITY_PX_MS = 0.55;
+
+    function onStart(e){
+      if(state.animating) return;
+      if(!e.touches || e.touches.length!==1) return;
+      const t=e.touches[0];
+      startX=t.clientX; startY=t.clientY; lastX=startX;
+      startT=performance.now();
+      dragging=true; locked=false; lockDir=null;
+      document.body.classList.add("noSelect");
+      track.style.transition="none";
+    }
+
+    function rubber(dx, width){
+      // мягкий резиновый эффект при сильном тянучем
+      const k = 0.35;
+      const max = width * 0.9;
+      const cl = Math.max(-max, Math.min(max, dx));
+      return cl * (1 - k * (Math.abs(cl) / max));
+    }
+
+    function onMove(e){
+      if(!dragging || state.animating) return;
+      const t=e.touches[0];
+      const dx=t.clientX - startX;
+      const dy=t.clientY - startY;
+
+      if(!locked){
+        if(Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        // decide direction
+        if(Math.abs(dy) > Math.abs(dx) * 1.15){
+          // vertical scroll, cancel
+          dragging=false;
+          document.body.classList.remove("noSelect");
+          track.style.transform="translateX(-33.3333%)";
+          return;
+        } else {
+          locked=true; lockDir="h";
+        }
+      }
+
+      if(lockDir==="h"){
+        e.preventDefault(); // важно: passive:false
+        const viewport=document.getElementById("gridViewport");
+        const w=viewport.clientWidth;
+        const px = rubber(dx, w);
+        setTrackX(px, false);
+        lastX=t.clientX;
+      }
+    }
+
+    function onEnd(e){
+      if(!dragging || state.animating) return;
+      dragging=false;
+      document.body.classList.remove("noSelect");
+
+      const endT=performance.now();
+      const dt=endT - startT;
+      const touch=(e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : null;
+      if(!touch){
+        snapToCenter();
+        return;
+      }
+
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+
+      if(Math.abs(dy) > Math.abs(dx) * 1.15){
+        snapToCenter();
+        return;
+      }
+
+      const viewport=document.getElementById("gridViewport");
+      const w=viewport.clientWidth;
+      const v = Math.abs(dx) / Math.max(dt,1);
+
+      const passed = (Math.abs(dx) > w * DIST_THRESHOLD) || (v > VELOCITY_PX_MS);
+
+      if(!passed){
+        snapToCenter();
+        return;
+      }
+
+      // dx<0 => swipe left => next month (+1)
+      commitMonth(dx < 0 ? +1 : -1);
+    }
+
+    el.addEventListener("touchstart", onStart, { passive:true });
+    el.addEventListener("touchmove", onMove, { passive:false });
+    el.addEventListener("touchend", onEnd, { passive:true });
+    el.addEventListener("touchcancel", ()=>{ dragging=false; document.body.classList.remove("noSelect"); snapToCenter(); }, { passive:true });
+  }
+
+  attachSwipe(document.getElementById("gridViewport"));
 
   // Initial render
   rerenderAll();
