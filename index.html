@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cycle</title>
+  <style>
+    body { font-family: -apple-system, system-ui; margin: 16px; }
+    .card { padding: 14px; border-radius: 14px; border: 1px solid #ddd; margin-bottom: 12px; }
+    button { padding: 10px 12px; border-radius: 12px; border: 1px solid #ccc; background: white; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .muted { color: #666; }
+    .big { font-size: 18px; font-weight: 600; }
+    input { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="big">Трекер цикла</div>
+    <div class="muted">Данные хранятся локально на телефоне.</div>
+  </div>
+
+  <div class="card">
+    <div class="big" id="next"></div>
+    <div class="muted" id="meta"></div>
+  </div>
+
+  <div class="card">
+    <div class="row">
+      <button onclick="startCycle()">Началось</button>
+      <button onclick="endCycle()">Закончилось</button>
+      <button onclick="exportData()">Экспорт JSON</button>
+    </div>
+    <div style="height:10px"></div>
+    <input type="file" id="file" accept="application/json" onchange="importData(event)" />
+    <div class="muted">Импорт заменит текущие данные.</div>
+  </div>
+
+  <div class="card">
+    <div class="big">История</div>
+    <div id="list" class="muted"></div>
+  </div>
+
+<script>
+  // Telegram WebApp API (не обязательно, но можно подстроить тему)
+  if (window.Telegram?.WebApp) {
+    Telegram.WebApp.ready();
+    Telegram.WebApp.expand();
+  }
+
+  const KEY = "cycle_app_v1";
+
+  function load() {
+    const raw = localStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : { cycles: [] }; // cycles: {start, end}
+  }
+
+  function save(data) {
+    localStorage.setItem(KEY, JSON.stringify(data));
+    render();
+  }
+
+  function isoDay(d) {
+    const dt = new Date(d);
+    dt.setHours(0,0,0,0);
+    return dt.toISOString();
+  }
+
+  function daysBetween(a, b) {
+    const ms = (new Date(b).setHours(0,0,0,0) - new Date(a).setHours(0,0,0,0));
+    return Math.round(ms / (1000*60*60*24));
+  }
+
+  function median(nums) {
+    const arr = [...nums].sort((x,y)=>x-y);
+    const n = arr.length;
+    if (!n) return null;
+    return n % 2 ? arr[Math.floor(n/2)] : Math.round((arr[n/2-1] + arr[n/2]) / 2);
+  }
+
+  function prediction(cycles) {
+    const starts = cycles.map(c => new Date(c.start)).sort((a,b)=>a-b);
+    if (starts.length < 2) return { next: null, med: null };
+
+    const lens = [];
+    for (let i=1;i<starts.length;i++) {
+      const d = daysBetween(starts[i-1], starts[i]);
+      if (d >= 15 && d <= 60) lens.push(d);
+    }
+    const med = median(lens);
+    if (!med) return { next: null, med: null };
+
+    const last = starts[starts.length-1];
+    const next = new Date(last);
+    next.setDate(next.getDate() + med);
+    return { next, med };
+  }
+
+  function startCycle() {
+    const data = load();
+    const today = isoDay(new Date());
+    // не даём создать дубликат старта на сегодня
+    if (data.cycles.some(c => c.start === today)) return;
+    data.cycles.push({ start: today, end: null });
+    save(data);
+  }
+
+  function endCycle() {
+    const data = load();
+    // закрываем последний незакрытый цикл
+    for (let i = data.cycles.length - 1; i >= 0; i--) {
+      if (!data.cycles[i].end) {
+        data.cycles[i].end = isoDay(new Date());
+        break;
+      }
+    }
+    save(data);
+  }
+
+  function exportData() {
+    const data = load();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "cycle-backup.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function importData(evt) {
+    const file = evt.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.cycles)) throw new Error("bad format");
+        localStorage.setItem(KEY, JSON.stringify(parsed));
+        render();
+      } catch(e) {
+        alert("Не получилось импортировать файл.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function fmt(d) {
+    return new Date(d).toLocaleDateString("ru-RU", { year:"numeric", month:"long", day:"numeric" });
+  }
+
+  function render() {
+    const data = load();
+    const { next, med } = prediction(data.cycles);
+
+    const nextEl = document.getElementById("next");
+    const metaEl = document.getElementById("meta");
+
+    if (next) {
+      nextEl.textContent = `Следующий цикл примерно: ${next.toLocaleDateString("ru-RU", { day:"numeric", month:"long", year:"numeric" })}`;
+      metaEl.textContent = `Медиана длины цикла: ${med} дней (по истории).`;
+    } else {
+      nextEl.textContent = "Добавь хотя бы 2 начала цикла — и появится прогноз.";
+      metaEl.textContent = "";
+    }
+
+    const list = document.getElementById("list");
+    if (!data.cycles.length) {
+      list.textContent = "Пока пусто.";
+      return;
+    }
+    list.innerHTML = data.cycles
+      .slice().reverse()
+      .map(c => `• ${fmt(c.start)} — ${c.end ? fmt(c.end) : "…"}`)
+      .join("<br/>");
+  }
+
+  render();
+</script>
+</body>
+</html>
